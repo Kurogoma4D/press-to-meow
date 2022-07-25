@@ -15,70 +15,128 @@ function objectToCssString(settings: any): string {
 }
 
 export class MeowController {
-    private timer: NodeJS.Timer | undefined;
+    private timer: NodeJS.Timeout | undefined;
     private disposables: vscode.Disposable[] = [];
+    private decoration: vscode.TextEditorDecorationType | undefined;
+    private isActive: Boolean = false;
+    private frameCount: number = 0;
+    private visibleRange: readonly vscode.Range[] | undefined;
 
-    constructor() {
-        this.activate();
-    }
+    private _maxFrame = 5000;
 
-    private createTutorial = () => {
-        const editor = vscode.window.activeTextEditor;
-        const baseStyle = {
+    private baseStyle = (opacity: number): object => {
+        return {
             position: 'absolute',
             top: '40vh',
             left: '0px',
+            width: '100%',
+            margin: '0 auto',
+            opacity: opacity,
             ['z-index']: 1,
             ['font-weight']: '900',
             ['pointer-events']: 'none',
             ['text-align']: 'center',
-            ['font-size']: '96px',
+            ['font-size']: '48px',
         };
+    };
 
-        const createDecoration = (): vscode.DecorationRenderOptions => {
-            const base = objectToCssString(baseStyle);
-            return {
-                after: {
-                    margin: '0 auto',
-                    contentText: 'yay',
-                    color: '#fff',
-                    textDecoration: `none; ${base}`,
-                },
-            };
+    private createDecoration = (
+        opacity: number
+    ): vscode.DecorationRenderOptions => {
+        const base = objectToCssString(this.baseStyle(opacity));
+        return {
+            after: {
+                margin: '0 auto',
+                contentText: 'ニャーと鳴くにはFを押す',
+                color: '#fff',
+                textDecoration: `none; ${base}`,
+            },
         };
+    };
 
-        const decorationType = vscode.window.createTextEditorDecorationType({
-            ...createDecoration(),
+    public fireMeow = () => {
+        this.isActive = true;
+        this.frameCount = 0;
+        this.activate();
+    };
+
+    private calculateOpacity = (count: number): number => {
+        if (count < 200) {
+            return count / 200;
+        }
+
+        if (count > 4800) {
+            return (this._maxFrame - count) / 200;
+        }
+
+        return 1.0;
+    };
+
+    private createTutorial = () => {
+        this.decoration?.dispose();
+
+        const opacity = this.calculateOpacity(this.frameCount);
+
+        const visibleRange = this.visibleRange;
+        if (!visibleRange) {
+            return;
+        }
+
+        const first = [...visibleRange].sort().find((range) => !range.isEmpty);
+        const isOutOfFrame = this.frameCount >= this._maxFrame;
+        if (!first || isOutOfFrame) {
+            this.dismiss();
+            return;
+        }
+
+        const editor = vscode.window.activeTextEditor;
+
+        this.decoration = vscode.window.createTextEditorDecorationType({
+            ...this.createDecoration(opacity),
             rangeBehavior: vscode.DecorationRangeBehavior.ClosedClosed,
-            light: createDecoration(),
-            dark: createDecoration(),
+            light: this.createDecoration(opacity),
+            dark: this.createDecoration(opacity),
         });
 
-        const first = [
-            new vscode.Range(
-                new vscode.Position(0, 0),
-                new vscode.Position(0, 0)
-            ),
-        ];
-        const firstVisibleRange = first;
+        const position = first.start;
+        const range = new vscode.Range(position, position);
 
-        console.log(firstVisibleRange);
-        editor?.setDecorations(decorationType, firstVisibleRange);
+        editor?.setDecorations(this.decoration, [range]);
+
+        if (this.isActive) {
+            this.frameCount++;
+        }
     };
 
     private activate = () => {
-        this.timer = setTimeout(() => {}, 3000);
-
         const listener = vscode.window.onDidChangeTextEditorVisibleRanges(
             (event) => {
-                console.log(event.visibleRanges);
+                if (this.isActive) {
+                    this.decoration?.dispose();
+                }
+                this.visibleRange = event.visibleRanges;
             }
         );
         this.disposables.push(listener);
+
+        this.visibleRange = vscode.window.activeTextEditor?.visibleRanges;
+        if (this.visibleRange) {
+            this.timer = setInterval(() => {
+                this.frameCount++;
+                this.createTutorial();
+            }, 1);
+        }
+    };
+
+    private dismiss = () => {
+        this.isActive = false;
+        clearTimeout(this.timer);
+        this.decoration?.dispose();
     };
 
     public dispose = () => {
-        clearTimeout(this.timer);
+        this.dismiss();
+
         while (this.disposables.length) {
             this.disposables.shift()?.dispose();
         }
