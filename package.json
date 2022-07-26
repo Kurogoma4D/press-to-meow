@@ -22,25 +22,33 @@
         ]
     },
     "scripts": {
-        "vscode:prepublish": "npm run compile",
+        "vscode:prepublish": "npm run clean && npm run compile && npm run copy-files",
         "compile": "tsc -p ./",
         "watch": "tsc -watch -p ./",
         "pretest": "npm run compile && npm run lint",
         "lint": "eslint src --ext ts",
-        "test": "node ./out/test/runTest.js"
+        "test": "node ./out/test/runTest.js",
+        "clean": "rimraf out/",
+        "copy-files": "copyfiles -u 1 assets/**/* out/"
     },
     "devDependencies": {
-        "@types/vscode": "^1.56.0",
         "@types/glob": "^7.1.3",
         "@types/mocha": "^8.2.2",
         "@types/node": "14.x",
-        "eslint": "^7.27.0",
+        "@types/sound-play": "^1.1.0",
+        "@types/vscode": "^1.56.0",
         "@typescript-eslint/eslint-plugin": "^4.26.0",
         "@typescript-eslint/parser": "^4.26.0",
+        "@vscode/test-electron": "^2.1.5",
+        "copyfiles": "^2.4.1",
+        "eslint": "^7.27.0",
         "glob": "^7.1.7",
         "mocha": "^8.4.0",
+        "rimraf": "^3.0.2",
         "typescript": "^4.3.2",
-        "vscode-test": "^1.5.2",
-        "@vscode/test-electron": "^2.1.5"
+        "vscode-test": "^1.5.2"
+    },
+    "dependencies": {
+        "sound-play": "^1.1.0"
     }
 }

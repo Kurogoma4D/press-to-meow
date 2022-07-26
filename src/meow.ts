@@ -1,4 +1,6 @@
 import * as vscode from 'vscode';
+import * as sound from 'sound-play';
+import path = require('path');
 
 function objectToCssString(settings: any): string {
     let value = '';
@@ -47,7 +49,7 @@ export class MeowController {
         return {
             after: {
                 margin: '0 auto',
-                contentText: 'ニャーと鳴くにはFを押す',
+                contentText: 'ニャーと鳴くには <any key> を押す',
                 color: '#fff',
                 textDecoration: `none; ${base}`,
             },
@@ -119,6 +121,12 @@ export class MeowController {
         );
         this.disposables.push(listener);
 
+        const keyEvent = vscode.commands.registerCommand('type', (event) => {
+            sound.play(path.join(__dirname, 'meow.wav'));
+            console.log(`Pressed <${event.text}> key to meow.`);
+        });
+        this.disposables.push(keyEvent);
+
         this.visibleRange = vscode.window.activeTextEditor?.visibleRanges;
         if (this.visibleRange) {
             this.timer = setInterval(() => {
@@ -132,13 +140,13 @@ export class MeowController {
         this.isActive = false;
         clearTimeout(this.timer);
         this.decoration?.dispose();
-    };
-
-    public dispose = () => {
-        this.dismiss();
 
         while (this.disposables.length) {
             this.disposables.shift()?.dispose();
         }
+    };
+
+    public dispose = () => {
+        this.dismiss();
     };
 }
